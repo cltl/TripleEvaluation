@@ -1,0 +1,971 @@
+package eu.kyotoproject.evaluation.conversion;
+
+import eu.kyotoproject.evaluation.Triplet;
+import eu.kyotoproject.kaf.KafSaxParser;
+import eu.kyotoproject.kaf.KafWordForm;
+import eu.kyotoproject.kybotoutput.objects.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Set;
+
+/**
+ * Created by IntelliJ IDEA.
+ * User: kyoto
+ * Date: 2/16/11
+ * Time: 2:55 PM
+ * To change this template use File | Settings | File Templates.
+ */
+public class SemHisTripletConversion {
+
+    static public ArrayList<Triplet> convertKybotEventArraysToTripletsAgata (KafSaxParser kafParser, HashMap<String, ArrayList<KybotEvent>> facts) {
+        ArrayList<Triplet> triplets = new ArrayList<Triplet>();
+        int nFacts = 0;
+        int nUnResolvedFacts = 0;
+        int nUnResolvedRoles = 0;
+        Set keySet = facts.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            ArrayList<KybotEvent> factList = facts.get(key);
+            for (int i = 0; i < factList.size(); i++) {
+                KybotEvent fact = factList.get(i);
+                nFacts++;
+                ArrayList<String> mergedIds = new ArrayList<String> ();
+                ArrayList<String> eventIds = new ArrayList<String> ();
+                ArrayList<String> roleIds = new ArrayList<String>();
+                ArrayList<String> locIds = new ArrayList<String>();
+                ArrayList<String> countryIds = new ArrayList<String>();
+                ArrayList<String> dateIds = new ArrayList<String>();
+
+                String rType = "";
+                ///// We first collect all the IDs
+
+                /// for the event
+                if (kafParser.TermToWord.containsKey(fact.getTarget())) {
+                    eventIds = kafParser.TermToWord.get(fact.getTarget());
+                }
+                /// for the roles
+                for (int j = 0; j < fact.getRoles().size(); j++) {
+                    KybotRole role = fact.getRoles().get(j);
+                    rType = role.getRtype();
+                    if (kafParser.TermToWord.containsKey(role.getTarget())) {
+                        roleIds = kafParser.TermToWord.get(role.getTarget());
+                    }
+                }
+
+                /// for the places
+                for (int j = 0; j < fact.getLocs().size(); j++) {
+                    KybotLocation kybotLocation = fact.getLocs().get(j);
+                    for (int k = 0; k < kybotLocation.getSpans().size(); k++) {
+                        String s = kybotLocation.getSpans().get(k);
+                        if (kafParser.TermToWord.containsKey(s)) {
+                            locIds = kafParser.TermToWord.get(s);
+                        }
+                    }
+                }
+
+                //// for the countries
+                for (int j = 0; j < fact.getCountries().size(); j++) {
+                    KybotCountry kybotCountry = fact.getCountries().get(j);
+                    for (int k = 0; k < kybotCountry.getSpans().size(); k++) {
+                        String s = kybotCountry.getSpans().get(k);
+                        if (kafParser.TermToWord.containsKey(s)) {
+                            countryIds = kafParser.TermToWord.get(s);
+                        }
+                    }
+                }
+
+                /// for the dates
+                for (int j = 0; j < fact.getDates().size(); j++) {
+                    KybotDate kybotDate = fact.getDates().get(j);
+                    for (int k = 0; k < kybotDate.getSpans().size(); k++) {
+                        String s = kybotDate.getSpans().get(k);
+                        if (kafParser.TermToWord.containsKey(s)) {
+                            dateIds = kafParser.TermToWord.get(s);
+                        }
+                    }
+                }
+
+                //// we merge all ids to represent the event scope
+                mergedIds.addAll(eventIds);
+                mergedIds.addAll(roleIds);
+                mergedIds.addAll(locIds);
+                mergedIds.addAll(countryIds);
+                mergedIds.addAll(dateIds);
+
+
+                if (mergedIds.size()>0) {
+
+                   ////// The event itself becomes a triplet with the relation expressed by the roles
+                    Triplet eTriplet = new Triplet();
+                    eTriplet.setEventComment(fact.getLemma());
+                    eTriplet.setTripletId(fact.getEventId());
+                    eTriplet.setEventIds(mergedIds);
+                    eTriplet.setRelation(rType);
+                    eTriplet.setParticipantIds(eventIds);
+                    eTriplet.setProfileId(fact.getProfileId());
+                    eTriplet.setParticipantComment(fact.getLemma());
+                    triplets.add(eTriplet);
+
+                    //// for each role we create a separate triplet
+                    for (int j = 0; j < fact.getRoles().size(); j++) {
+                        KybotRole role = fact.getRoles().get(j);
+                        if (roleIds.size()>0) {
+                            Triplet triplet = new Triplet();
+                            triplet.setEventComment(fact.getLemma());
+                            triplet.setTripletId(fact.getEventId());
+                            triplet.setEventIds(mergedIds);
+                            triplet.setRelation(role.getRtype());
+                            triplet.setParticipantIds(roleIds);
+                            triplet.setProfileId(role.getProfileId());
+                            triplet.setParticipantComment(role.getLemma());
+                            triplets.add(triplet);
+                        }
+                        else {
+                            nUnResolvedRoles++;
+                            System.out.println("Could not resolve role.getTarget() to word forms in KAF file= " + role.getTarget());
+                            System.out.println("role.toXmlString() = " + role.toXmlString());
+                        }
+                    }
+                    /// for each place we create a separate triplet
+                    String lemma = "";
+                    for (int k = 0; k < locIds.size(); k++) {
+                        String s = locIds.get(k);
+                        lemma += kafParser.getWordForm(s).getWf()+" ";
+                    }
+                    if (locIds.size()>0) {
+                        Triplet triplet = new Triplet();
+                        triplet.setTripletId(fact.getEventId());
+                        triplet.setEventComment(fact.getLemma());
+                        triplet.setEventIds(mergedIds);
+                        triplet.setRelation("LOCATION");
+                        triplet.setParticipantIds(locIds);
+                        triplet.setParticipantComment(lemma.trim());
+                        triplets.add(triplet);
+                    }
+
+                    //// for each place we create a separate triplet
+                    lemma = "";
+                    for (int k = 0; k < countryIds.size(); k++) {
+                        String s = countryIds.get(k);
+                        lemma += kafParser.getWordForm(s).getWf()+" ";
+                    }
+                    if (countryIds.size()>0) {
+                        Triplet triplet = new Triplet();
+                        triplet.setTripletId(fact.getEventId());
+                        triplet.setEventComment(fact.getLemma());
+                        triplet.setEventIds(mergedIds);
+                        triplet.setRelation("LOCATION");
+                        triplet.setParticipantIds(countryIds);
+                        triplet.setParticipantComment(lemma.trim());
+                        triplets.add(triplet);
+                    }
+
+                    //// for all dates we create a separate triplet
+                    lemma = "";
+                    for (int k = 0; k < dateIds.size(); k++) {
+                        String s =  dateIds.get(k);
+                        lemma += kafParser.getWordForm(s).getWf()+" ";
+                    }
+                    if (dateIds.size()>0) {
+                        Triplet triplet = new Triplet();
+                        triplet.setTripletId(fact.getEventId());
+                        triplet.setEventComment(fact.getLemma());
+                        triplet.setEventIds(mergedIds);
+                        triplet.setRelation("TIME");
+                        triplet.setParticipantIds(dateIds);
+                        triplet.setParticipantComment(lemma.trim());
+                        triplets.add(triplet);
+                    }
+                }
+                else {
+                    nUnResolvedFacts++;
+                    System.out.println("Could not resolve fact.getTarget() to word forms in KAF file= " + fact.getTarget());
+                    System.out.println("fact.toXmlString() = " + fact.toXmlString());
+                }
+            }
+        }
+        System.out.println("Nr. of facts = " + nFacts);
+        System.out.println("Nr. of unresolved facts = "+ nUnResolvedFacts);
+        System.out.println("Nr. of unresolved roles = "+ nUnResolvedRoles);
+        System.out.println("Nr. of triplets = " + triplets.size());
+        return triplets;
+    }
+    static public ArrayList<Triplet> convertKybotEventToTripletsAgata (KafSaxParser kafParser, HashMap<String, KybotEvent> facts) {
+        ArrayList<Triplet> triplets = new ArrayList<Triplet>();
+        int nFacts = 0;
+        int nUnResolvedFacts = 0;
+        int nUnResolvedRoles = 0;
+        Set keySet = facts.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            KybotEvent fact = facts.get(key);
+            nFacts++;
+            ArrayList<String> mergedIds = new ArrayList<String> ();
+            ArrayList<String> eventIds = new ArrayList<String> ();
+            ArrayList<String> roleIds = new ArrayList<String>();
+            ArrayList<String> locIds = new ArrayList<String>();
+            ArrayList<String> countryIds = new ArrayList<String>();
+            ArrayList<String> dateIds = new ArrayList<String>();
+
+            String rType = "";
+            ///// We first collect all the IDs
+
+            /// for the event
+            if (kafParser.TermToWord.containsKey(fact.getTarget())) {
+                eventIds = kafParser.TermToWord.get(fact.getTarget());
+            }
+            /// for the roles
+            for (int j = 0; j < fact.getRoles().size(); j++) {
+                KybotRole role = fact.getRoles().get(j);
+                rType = role.getRtype();
+                if (kafParser.TermToWord.containsKey(role.getTarget())) {
+                    roleIds = kafParser.TermToWord.get(role.getTarget());
+                }
+            }
+
+            /// for the places
+            for (int j = 0; j < fact.getLocs().size(); j++) {
+                KybotLocation kybotLocation = fact.getLocs().get(j);
+                for (int k = 0; k < kybotLocation.getSpans().size(); k++) {
+                    String s = kybotLocation.getSpans().get(k);
+                    if (kafParser.TermToWord.containsKey(s)) {
+                        locIds = kafParser.TermToWord.get(s);
+                    }
+                }
+            }
+
+            //// for the countries
+            for (int j = 0; j < fact.getCountries().size(); j++) {
+                KybotCountry kybotCountry = fact.getCountries().get(j);
+                for (int k = 0; k < kybotCountry.getSpans().size(); k++) {
+                    String s = kybotCountry.getSpans().get(k);
+                    if (kafParser.TermToWord.containsKey(s)) {
+                        countryIds = kafParser.TermToWord.get(s);
+                    }
+                }
+            }
+
+            /// for the dates
+            for (int j = 0; j < fact.getDates().size(); j++) {
+                KybotDate kybotDate = fact.getDates().get(j);
+                for (int k = 0; k < kybotDate.getSpans().size(); k++) {
+                    String s = kybotDate.getSpans().get(k);
+                    if (kafParser.TermToWord.containsKey(s)) {
+                        dateIds = kafParser.TermToWord.get(s);
+                    }
+                }
+            }
+
+            //// we merge all ids to represent the event scope
+            mergedIds.addAll(eventIds);
+            mergedIds.addAll(roleIds);
+            mergedIds.addAll(locIds);
+            mergedIds.addAll(countryIds);
+            mergedIds.addAll(dateIds);
+
+
+            if (mergedIds.size()>0) {
+
+               ////// The event itself becomes a triplet with the relation expressed by the roles
+                Triplet eTriplet = new Triplet();
+                eTriplet.setEventComment(fact.getLemma());
+                eTriplet.setTripletId(fact.getEventId());
+                eTriplet.setEventIds(mergedIds);
+                eTriplet.setRelation(rType);
+                eTriplet.setParticipantIds(eventIds);
+                eTriplet.setProfileId(fact.getProfileId());
+                eTriplet.setParticipantComment(fact.getLemma());
+                triplets.add(eTriplet);
+
+                //// for each role we create a separate triplet
+                for (int j = 0; j < fact.getRoles().size(); j++) {
+                    KybotRole role = fact.getRoles().get(j);
+                    if (roleIds.size()>0) {
+                        Triplet triplet = new Triplet();
+                        triplet.setEventComment(fact.getLemma());
+                        triplet.setTripletId(fact.getEventId());
+                        triplet.setEventIds(mergedIds);
+                        triplet.setRelation(role.getRtype());
+                        triplet.setParticipantIds(roleIds);
+                        triplet.setProfileId(role.getProfileId());
+                        triplet.setParticipantComment(role.getLemma());
+                        triplets.add(triplet);
+                    }
+                    else {
+                        nUnResolvedRoles++;
+                        System.out.println("Could not resolve role.getTarget() to word forms in KAF file= " + role.getTarget());
+                        System.out.println("role.toXmlString() = " + role.toXmlString());
+                    }
+                }
+                /// for each place we create a separate triplet
+                String lemma = "";
+                for (int k = 0; k < locIds.size(); k++) {
+                    String s = locIds.get(k);
+                    lemma += kafParser.getWordForm(s).getWf()+" ";
+                }
+                if (locIds.size()>0) {
+                    Triplet triplet = new Triplet();
+                    triplet.setTripletId(fact.getEventId());
+                    triplet.setEventComment(fact.getLemma());
+                    triplet.setEventIds(mergedIds);
+                    triplet.setRelation("LOCATION");
+                    triplet.setParticipantIds(locIds);
+                    triplet.setParticipantComment(lemma.trim());
+                    triplets.add(triplet);
+                }
+
+                //// for each place we create a separate triplet
+                lemma = "";
+                for (int k = 0; k < countryIds.size(); k++) {
+                    String s = countryIds.get(k);
+                    lemma += kafParser.getWordForm(s).getWf()+" ";
+                }
+                if (countryIds.size()>0) {
+                    Triplet triplet = new Triplet();
+                    triplet.setTripletId(fact.getEventId());
+                    triplet.setEventComment(fact.getLemma());
+                    triplet.setEventIds(mergedIds);
+                    triplet.setRelation("LOCATION");
+                    triplet.setParticipantIds(countryIds);
+                    triplet.setParticipantComment(lemma.trim());
+                    triplets.add(triplet);
+                }
+
+                //// for all dates we create a separate triplet
+                lemma = "";
+                for (int k = 0; k < dateIds.size(); k++) {
+                    String s =  dateIds.get(k);
+                    lemma += kafParser.getWordForm(s).getWf()+" ";
+                }
+                if (dateIds.size()>0) {
+                    Triplet triplet = new Triplet();
+                    triplet.setTripletId(fact.getEventId());
+                    triplet.setEventComment(fact.getLemma());
+                    triplet.setEventIds(mergedIds);
+                    triplet.setRelation("TIME");
+                    triplet.setParticipantIds(dateIds);
+                    triplet.setParticipantComment(lemma.trim());
+                    triplets.add(triplet);
+                }
+            }
+            else {
+                nUnResolvedFacts++;
+                System.out.println("Could not resolve fact.getTarget() to word forms in KAF file= " + fact.getTarget());
+                System.out.println("fact.toXmlString() = " + fact.toXmlString());
+            }
+        }
+        System.out.println("Nr. of facts = " + nFacts);
+        System.out.println("Nr. of unresolved facts = "+ nUnResolvedFacts);
+        System.out.println("Nr. of unresolved roles = "+ nUnResolvedRoles);
+        System.out.println("Nr. of triplets = " + triplets.size());
+        return triplets;
+    }
+
+    ////// Using this version we take all the sentences in which the events, the participants and the time and place tokens occur
+    ////// and use the full sentence to represent the event.
+    ////// Since the output of the kybots in this case is non-relational, we take all the elements: event+role to become one participant for the sentence.
+
+/*
+  <doc name="dbxml:///srebrenica5hist.dbxml/506.ner.ont.kaf" shortname="506.ner.ont.kaf">
+    <event eid="e1" target="t3.9" atype="AdjPnounEnAdjPnoun" mtype="Bosnisch" lemma="Servi&#xC3;&#xAB;r" pos="N.noun" m2type="Bosnisch" n2type="moslim" rtype="Participant" synset="d_n-37913-n" rank="1.0" profile_id="Participant_adj_Pnoun_en_adj_Pnoun"/>
+    <event eid="e2" target="t2.19" atype="AdjPnoun" mtype="Bosnisch-Servisch" lemma="soldaat" pos="N.noun" rtype="Participant" synset="d_n-14042-n" rank="0.58857" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e3" target="t2.38" atype="AdjPnoun" mtype="gedood" lemma="vader" pos="N.noun" rtype="Participant" synset="d_n-25871-n" rank="0.269053" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e4" target="t3.13" atype="AdjPnoun" mtype="Bosnisch" lemma="moslim" pos="N.noun" rtype="Participant" synset="d_n-23964-n" rank="1.0" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e5" target="t5.7" atype="AdjPnoun" mtype="Nederlands" lemma="bataljon" pos="N.noun" rtype="Participant" synset="" rank="" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e6" target="t6.12" atype="AdjPnoun" mtype="militair" lemma="steun" pos="N.noun" rtype="Participant" synset="d_n-31070-n" rank="0.1813" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e7" target="t7.13" atype="AdjPnoun" mtype="Nederlands" lemma="militair" pos="N.noun" rtype="Participant" synset="d_n-12658-n" rank="1.0" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e8" target="t7.30" atype="AdjPnoun" mtype="Bosnisch-Servisch" lemma="troep" pos="N.noun" rtype="Participant" synset="" rank="" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e9" target="t11.6" atype="AdjPnoun" mtype="Nederlands" lemma="soldaat" pos="N.noun" rtype="Participant" synset="d_n-14042-n" rank="0.589046" profile_id="Participant_adj_Pnoun"/>
+    <event eid="e10" target="t3.46" atype="anyDetLnounBC" dtype="het" lemma="stad" pos="N.noun.DIM" rtype="Location" synset="" rank="" profile_id="location_anyDet_LnounBC"/>
+    <event eid="e11" target="t14.24" atype="PinMonthLemma" ptype="in" lemma="juni" pos="N.noun" rtype="Time" synset="d_n-17490-n" rank="1.0" profile_id="time_Pin_MonthL"/>
+    <event eid="e12" target="t2.25" atype="VerbOHexclDummyF" dummyftype="Nederlands" lemma="wegvoeren" pos="V.verb" rtype="Action" synset="" rank="" profile_id="action_verbOHexcl_dummyf"/>
+    <event eid="e13" target="t2.43" atype="VerbOHexclDummyF" dummyftype="wegvoeren" lemma="uitbreken" pos="V.verb" rtype="Action" synset="" rank="" profile_id="action_verbOHexcl_dummyf"/>
+    <event eid="e14" target="t3.41" atype="VerbOHexclDummyF" dummyftype="en" lemma="beschermen" pos="V.verb" rtype="Action" synset="" rank="" profile_id="action_verbOHexcl_dummyf"/>
+    <event eid="e15" target="t7.34" atype="VerbOHexclDummyF" dummyftype="die" lemma="innemen" pos="V.verb" rtype="Action" synset="" rank="" profile_id="action_verbOHexcl_dummyf"/>
+    <event eid="e16" target="t9.33" atype="VerbOHexclDummyF" dummyftype="een" lemma="vermoorden" pos="V.verb" rtype="Action" synset="" rank="" profile_id="action_verbOHexcl_dummyf"/>
+    <event eid="e17" target="t14.16" atype="VerbOHexclDummyF" dummyftype="na" lemma="aftreden" pos="V.verb" rtype="Action" synset="" rank="" profile_id="action_verbOHexcl_dummyf"/>
+  </doc>
+ */
+
+
+    static public ArrayList<Triplet> convertKybotEventArraysToTripletsSentenceAsEvent (KafSaxParser kafParser, HashMap<String, ArrayList<KybotEvent>> facts) {
+        ArrayList<Triplet> triplets = new ArrayList<Triplet>();
+        HashMap<String, ArrayList<KybotEvent>> sentenceToTripletMap = new HashMap<String, ArrayList<KybotEvent>> ();
+        int nFacts = 0;
+        int nUnResolvedFacts = 0;
+        Set keySet = facts.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            ArrayList<KybotEvent> factList = facts.get(key);
+            for (int i = 0; i < factList.size(); i++) {
+                KybotEvent fact = factList.get(i);
+                if (kafParser.TermToWord.containsKey(fact.getTarget())) {
+                    ArrayList<String> factTokens = kafParser.TermToWord.get(fact.getTarget());
+                    for (int j = 0; j < factTokens.size(); j++) {
+                        String factToken = factTokens.get(j);
+                        KafWordForm wf = kafParser.wordFormMap.get(factToken);
+                        if (wf!=null) {
+                            String sentenceId = wf.getSent();
+                            if (sentenceToTripletMap.containsKey(sentenceId)) {
+                                ArrayList<KybotEvent> sentenceTriplets = sentenceToTripletMap.get(sentenceId);
+                                sentenceTriplets.add(fact);
+                                sentenceToTripletMap.put(sentenceId, sentenceTriplets);
+                            }
+                            else {
+                                ArrayList<KybotEvent> sentenceTriplets = new ArrayList<KybotEvent>();
+                                sentenceTriplets.add(fact);
+                                sentenceToTripletMap.put(sentenceId, sentenceTriplets);
+                            }
+                        }
+                    }
+                }
+                else {
+                    nUnResolvedFacts++;
+                }
+
+            }
+        }
+        keySet = sentenceToTripletMap.keySet();
+        keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            String sentence = getSentence(kafParser, key);
+            //System.out.println("key = " + key);
+            ArrayList<KybotEvent> factList = sentenceToTripletMap.get(key);
+            ArrayList<KybotEvent> events = new ArrayList<KybotEvent>();
+            ArrayList<KybotEvent> participants = new ArrayList<KybotEvent>();
+            for (int i = 0; i < factList.size(); i++) {
+                KybotEvent fact = factList.get(i);
+                if (fact.getRtype().toLowerCase().startsWith("action")) {
+                    //System.out.println("Action fact.toXmlString() = " + fact.toXmlString());
+                    events.add(fact);
+                }
+                else {
+                    participants.add(fact);
+                    //System.out.println("Participant fact.toXmlString() = " + fact.toXmlString());
+                }
+            }
+            if (events.size()>0) {
+                for (int i = 0; i < events.size(); i++) {
+                    KybotEvent kybotEvent = events.get(i);
+                    ArrayList<String> eventIds = new ArrayList<String> ();
+                    if (kafParser.TermToWord.containsKey(kybotEvent.getTarget())) {
+                        eventIds = kafParser.TermToWord.get(kybotEvent.getTarget());
+                    }
+                    if (participants.size()>0) {
+                        for (int j = 0; j < participants.size(); j++) {
+                            KybotEvent participant = participants.get(j);
+                            ArrayList<String> participantIds = new ArrayList<String>();
+                            if (kafParser.TermToWord.containsKey(participant.getTarget())) {
+                                participantIds = kafParser.TermToWord.get(participant.getTarget());
+                            }
+                            Triplet pTriplet = new Triplet();
+                            pTriplet.setEventComment(kybotEvent.getLemma());
+                            pTriplet.setTripletId(key);
+                            pTriplet.setEventIds(eventIds);
+                            pTriplet.setRelation(participant.getRtype());
+                            pTriplet.setParticipantIds(participantIds);
+                            pTriplet.setParticipantComment(participant.getLemma());
+                            pTriplet.setProfileId(kybotEvent.getProfileId()+"#"+participant.getProfileId());
+                            triplets.add(pTriplet);
+                        }
+                    }
+                    else {
+                        ArrayList<String> sentenceIds = kafParser.SentenceToWord.get(key);
+                        Triplet pTriplet = new Triplet();
+                        pTriplet.setEventComment(kybotEvent.getLemma());
+                        pTriplet.setTripletId(key);
+                        pTriplet.setEventIds(eventIds);
+                        pTriplet.setRelation(kybotEvent.getRtype());
+                        pTriplet.setParticipantIds(sentenceIds);
+                        pTriplet.setParticipantComment(sentence);
+                        pTriplet.setProfileId(kybotEvent.getProfileId());
+                        triplets.add(pTriplet);
+                      //  System.out.println("Sole kybotEvent = " + kybotEvent.toXmlString());
+                    }
+                }
+            }
+            else {
+                for (int j = 0; j < participants.size(); j++) {
+                    KybotEvent participant = participants.get(j);
+                    ArrayList<String> participantIds = new ArrayList<String>();
+                    if (kafParser.TermToWord.containsKey(participant.getTarget())) {
+                        participantIds = kafParser.TermToWord.get(participant.getTarget());
+                    }
+                    ArrayList<String> sentenceIds = kafParser.SentenceToWord.get(key);
+                    Triplet pTriplet = new Triplet();
+                    pTriplet.setEventComment(sentence);
+                    pTriplet.setTripletId(key);
+                    pTriplet.setEventIds(sentenceIds);
+                    pTriplet.setRelation(participant.getRtype());
+                    pTriplet.setParticipantIds(participantIds);
+                    pTriplet.setParticipantComment(participant.getLemma());
+                    pTriplet.setProfileId(participant.getProfileId());
+                    triplets.add(pTriplet);
+                }
+            }
+        }
+        System.out.println("Nr. of facts = " + nFacts);
+        System.out.println("Nr. of unresolved facts = "+ nUnResolvedFacts);
+        System.out.println("Nr. of triplets = " + triplets.size());
+        return triplets;
+    }
+    static public ArrayList<Triplet> convertKybotEventToTripletsSentenceAsEvent (KafSaxParser kafParser, HashMap<String, KybotEvent> facts) {
+        ArrayList<Triplet> triplets = new ArrayList<Triplet>();
+        HashMap<String, ArrayList<KybotEvent>> sentenceToTripletMap = new HashMap<String, ArrayList<KybotEvent>> ();
+        int nFacts = 0;
+        int nUnResolvedFacts = 0;
+        Set keySet = facts.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            KybotEvent fact = facts.get(key);
+            if (kafParser.TermToWord.containsKey(fact.getTarget())) {
+                ArrayList<String> factTokens = kafParser.TermToWord.get(fact.getTarget());
+                for (int j = 0; j < factTokens.size(); j++) {
+                    String factToken = factTokens.get(j);
+                    KafWordForm wf = kafParser.wordFormMap.get(factToken);
+                    if (wf!=null) {
+                        String sentenceId = wf.getSent();
+                        if (sentenceToTripletMap.containsKey(sentenceId)) {
+                            ArrayList<KybotEvent> sentenceTriplets = sentenceToTripletMap.get(sentenceId);
+                            sentenceTriplets.add(fact);
+                            sentenceToTripletMap.put(sentenceId, sentenceTriplets);
+                        }
+                        else {
+                            ArrayList<KybotEvent> sentenceTriplets = new ArrayList<KybotEvent>();
+                            sentenceTriplets.add(fact);
+                            sentenceToTripletMap.put(sentenceId, sentenceTriplets);
+                        }
+                    }
+                }
+            }
+            else {
+                nUnResolvedFacts++;
+            }
+        }
+        keySet = sentenceToTripletMap.keySet();
+        keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            String sentence = getSentence(kafParser, key);
+            //System.out.println("key = " + key);
+            ArrayList<KybotEvent> factList = sentenceToTripletMap.get(key);
+            ArrayList<KybotEvent> events = new ArrayList<KybotEvent>();
+            ArrayList<KybotEvent> participants = new ArrayList<KybotEvent>();
+            for (int i = 0; i < factList.size(); i++) {
+                KybotEvent fact = factList.get(i);
+                if (fact.getRtype().toLowerCase().startsWith("action")) {
+                    //System.out.println("Action fact.toXmlString() = " + fact.toXmlString());
+                    events.add(fact);
+                }
+                else {
+                    participants.add(fact);
+                    //System.out.println("Participant fact.toXmlString() = " + fact.toXmlString());
+                }
+            }
+            if (events.size()>0) {
+                for (int i = 0; i < events.size(); i++) {
+                    KybotEvent kybotEvent = events.get(i);
+                    ArrayList<String> eventIds = new ArrayList<String> ();
+                    if (kafParser.TermToWord.containsKey(kybotEvent.getTarget())) {
+                        eventIds = kafParser.TermToWord.get(kybotEvent.getTarget());
+                    }
+                    if (participants.size()>0) {
+                        for (int j = 0; j < participants.size(); j++) {
+                            KybotEvent participant = participants.get(j);
+                            ArrayList<String> participantIds = new ArrayList<String>();
+                            if (kafParser.TermToWord.containsKey(participant.getTarget())) {
+                                participantIds = kafParser.TermToWord.get(participant.getTarget());
+                            }
+                            Triplet pTriplet = new Triplet();
+                            pTriplet.setEventComment(kybotEvent.getLemma());
+                            pTriplet.setTripletId(key);
+                            pTriplet.setEventIds(eventIds);
+                            pTriplet.setRelation(participant.getRtype());
+                            pTriplet.setParticipantIds(participantIds);
+                            pTriplet.setParticipantComment(participant.getLemma());
+                            pTriplet.setProfileId(kybotEvent.getProfileId()+"#"+participant.getProfileId());
+                            triplets.add(pTriplet);
+                        }
+                    }
+                    else {
+                        ArrayList<String> sentenceIds = kafParser.SentenceToWord.get(key);
+                        Triplet pTriplet = new Triplet();
+                        pTriplet.setEventComment(kybotEvent.getLemma());
+                        pTriplet.setTripletId(key);
+                        pTriplet.setEventIds(eventIds);
+                        pTriplet.setRelation(kybotEvent.getRtype());
+                        pTriplet.setParticipantIds(sentenceIds);
+                        pTriplet.setParticipantComment(sentence);
+                        pTriplet.setProfileId(kybotEvent.getProfileId());
+                        triplets.add(pTriplet);
+                      //  System.out.println("Sole kybotEvent = " + kybotEvent.toXmlString());
+                    }
+                }
+            }
+            else {
+                for (int j = 0; j < participants.size(); j++) {
+                    KybotEvent participant = participants.get(j);
+                    ArrayList<String> participantIds = new ArrayList<String>();
+                    if (kafParser.TermToWord.containsKey(participant.getTarget())) {
+                        participantIds = kafParser.TermToWord.get(participant.getTarget());
+                    }
+                    ArrayList<String> sentenceIds = kafParser.SentenceToWord.get(key);
+                    Triplet pTriplet = new Triplet();
+                    pTriplet.setEventComment(sentence);
+                    pTriplet.setTripletId(key);
+                    pTriplet.setEventIds(sentenceIds);
+                    pTriplet.setRelation(participant.getRtype());
+                    pTriplet.setParticipantIds(participantIds);
+                    pTriplet.setParticipantComment(participant.getLemma());
+                    pTriplet.setProfileId(participant.getProfileId());
+                    triplets.add(pTriplet);
+                }
+            }
+        }
+        System.out.println("Nr. of facts = " + nFacts);
+        System.out.println("Nr. of unresolved facts = "+ nUnResolvedFacts);
+        System.out.println("Nr. of triplets = " + triplets.size());
+        return triplets;
+    }
+
+    ////// Using this version we take all the sentences in which the events, the participants and the time and place tokens occur
+    ////// and use the full sentence to represent the event.
+    ////// Since the output of the kybots in this case is non-relational, we take all the elements: event+role to become one participant for the sentence.
+    static public ArrayList<Triplet> convertKybotEventArraysToTripletsSentenceAsEvent_org (KafSaxParser kafParser,  HashMap<String, ArrayList<KybotEvent>> facts) {
+        ArrayList<Triplet> triplets = new ArrayList<Triplet>();
+        int nFacts = 0;
+        int nUnResolvedFacts = 0;
+        int nUnResolvedRoles = 0;
+        Set keySet = facts.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            ArrayList<KybotEvent> factList = facts.get(key);
+            for (int i = 0; i < factList.size(); i++) {
+                KybotEvent fact = factList.get(i);
+                nFacts++;
+                ArrayList<String> mergedIds = new ArrayList<String> ();
+                ArrayList<String> eventIds = new ArrayList<String> ();
+                ArrayList<String> roleIds = new ArrayList<String>();
+                ArrayList<String> locIds = new ArrayList<String>();
+                ArrayList<String> countryIds = new ArrayList<String>();
+                ArrayList<String> dateIds = new ArrayList<String>();
+
+                String rType = "";
+                ///// We first collect all the IDs
+
+                /// for the event
+                if (kafParser.TermToWord.containsKey(fact.getTarget())) {
+                    eventIds = kafParser.TermToWord.get(fact.getTarget());
+                }
+                /// for the roles
+                for (int j = 0; j < fact.getRoles().size(); j++) {
+                    KybotRole role = fact.getRoles().get(j);
+                    rType = role.getRtype();
+                    if (kafParser.TermToWord.containsKey(role.getTarget())) {
+                        roleIds = kafParser.TermToWord.get(role.getTarget());
+                    }
+                }
+
+                /// for the places
+                for (int j = 0; j < fact.getLocs().size(); j++) {
+                    KybotLocation kybotLocation = fact.getLocs().get(j);
+                    for (int k = 0; k < kybotLocation.getSpans().size(); k++) {
+                        String s = kybotLocation.getSpans().get(k);
+                        if (kafParser.TermToWord.containsKey(s)) {
+                            locIds = kafParser.TermToWord.get(s);
+                        }
+                    }
+                }
+
+                //// for the countries
+                for (int j = 0; j < fact.getCountries().size(); j++) {
+                    KybotCountry kybotCountry = fact.getCountries().get(j);
+                    for (int k = 0; k < kybotCountry.getSpans().size(); k++) {
+                        String s = kybotCountry.getSpans().get(k);
+                        if (kafParser.TermToWord.containsKey(s)) {
+                            countryIds = kafParser.TermToWord.get(s);
+                        }
+                    }
+                }
+
+                /// for the dates
+                for (int j = 0; j < fact.getDates().size(); j++) {
+                    KybotDate kybotDate = fact.getDates().get(j);
+                    for (int k = 0; k < kybotDate.getSpans().size(); k++) {
+                        String s = kybotDate.getSpans().get(k);
+                        if (kafParser.TermToWord.containsKey(s)) {
+                            dateIds = kafParser.TermToWord.get(s);
+                        }
+                    }
+                }
+
+                //// we merge all ids to represent the event scope
+                mergedIds.addAll(eventIds);
+                mergedIds.addAll(roleIds);
+/*
+                mergedIds.addAll(locIds);
+                mergedIds.addAll(countryIds);
+                mergedIds.addAll(dateIds);
+*/
+
+                ///// mergedIds now contains all the tokens
+                ///   we are going to expand it to all the tokens in the sentences that they occur in:
+
+                mergedIds = getSentenceIds(kafParser, mergedIds);
+                String sentence = getSentence(kafParser, eventIds);
+/*
+                System.out.println("Sentence:"+sentence);
+                for (int j = 0; j < mergedIds.size(); j++) {
+                    String s = mergedIds.get(j);
+                    System.out.println("\tid:"+s);
+                }
+*/
+
+                if (mergedIds.size()>0) {
+
+                    //We merge the event ids and the partipant ids to become one single participant
+                    ArrayList<String> eventAndRoleAsParticipant = new ArrayList<String>();
+                    eventAndRoleAsParticipant.addAll(eventIds);
+                    eventAndRoleAsParticipant.addAll(roleIds);
+                   ////// The event itself becomes a triplet with the relation expressed by the roles
+                    Triplet pTriplet = new Triplet();
+                    pTriplet.setEventComment(sentence);
+                    pTriplet.setTripletId(fact.getEventId());
+                    pTriplet.setEventIds(mergedIds);
+                    pTriplet.setRelation(rType);
+                    pTriplet.setParticipantIds(eventAndRoleAsParticipant);
+                    pTriplet.setParticipantComment(fact.getLemma()+":");
+                    pTriplet.setProfileId(fact.getProfileId());
+
+                    for (int j = 0; j < fact.getRoles().size(); j++) {
+                        KybotRole role = fact.getRoles().get(j);
+                        if (roleIds.size()>0) {
+                            pTriplet.extendParticipantComment(role.getLemma());
+                        }
+                        else {
+                            nUnResolvedRoles++;
+                            System.out.println("Could not resolve role.getTarget() to word forms in KAF file= " + role.getTarget());
+                            System.out.println("role.toXmlString() = " + role.toXmlString());
+                        }
+                    }
+                    triplets.add(pTriplet);
+                }
+                else {
+                    nUnResolvedFacts++;
+                    System.out.println("Could not resolve fact.getTarget() to word forms in KAF file= " + fact.getTarget());
+                    System.out.println("fact.toXmlString() = " + fact.toXmlString());
+                }
+            }
+        }
+        System.out.println("Nr. of facts = " + nFacts);
+        System.out.println("Nr. of unresolved facts = "+ nUnResolvedFacts);
+        System.out.println("Nr. of unresolved roles = "+ nUnResolvedRoles);
+        System.out.println("Nr. of triplets = " + triplets.size());
+        return triplets;
+
+    }
+    ////// Using this version we take all the sentences in which the events, the participants and the time and place tokens occur
+    ////// and use the full sentence to represent the event.
+    ////// Since the output of the kybots in this case is non-relational, we take all the elements: event+role to become one participant for the sentence.
+    static public ArrayList<Triplet> convertKybotEventToTripletsSentenceAsEvent_org (KafSaxParser kafParser,  HashMap<String, KybotEvent> facts) {
+        ArrayList<Triplet> triplets = new ArrayList<Triplet>();
+        int nFacts = 0;
+        int nUnResolvedFacts = 0;
+        int nUnResolvedRoles = 0;
+        Set keySet = facts.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            KybotEvent fact = facts.get(key);
+            nFacts++;
+            ArrayList<String> mergedIds = new ArrayList<String> ();
+            ArrayList<String> eventIds = new ArrayList<String> ();
+            ArrayList<String> roleIds = new ArrayList<String>();
+            ArrayList<String> locIds = new ArrayList<String>();
+            ArrayList<String> countryIds = new ArrayList<String>();
+            ArrayList<String> dateIds = new ArrayList<String>();
+
+            String rType = "";
+            ///// We first collect all the IDs
+
+            /// for the event
+            if (kafParser.TermToWord.containsKey(fact.getTarget())) {
+                eventIds = kafParser.TermToWord.get(fact.getTarget());
+            }
+            /// for the roles
+            for (int j = 0; j < fact.getRoles().size(); j++) {
+                KybotRole role = fact.getRoles().get(j);
+                rType = role.getRtype();
+                if (kafParser.TermToWord.containsKey(role.getTarget())) {
+                    roleIds = kafParser.TermToWord.get(role.getTarget());
+                }
+            }
+
+            /// for the places
+            for (int j = 0; j < fact.getLocs().size(); j++) {
+                KybotLocation kybotLocation = fact.getLocs().get(j);
+                for (int k = 0; k < kybotLocation.getSpans().size(); k++) {
+                    String s = kybotLocation.getSpans().get(k);
+                    if (kafParser.TermToWord.containsKey(s)) {
+                        locIds = kafParser.TermToWord.get(s);
+                    }
+                }
+            }
+
+            //// for the countries
+            for (int j = 0; j < fact.getCountries().size(); j++) {
+                KybotCountry kybotCountry = fact.getCountries().get(j);
+                for (int k = 0; k < kybotCountry.getSpans().size(); k++) {
+                    String s = kybotCountry.getSpans().get(k);
+                    if (kafParser.TermToWord.containsKey(s)) {
+                        countryIds = kafParser.TermToWord.get(s);
+                    }
+                }
+            }
+
+            /// for the dates
+            for (int j = 0; j < fact.getDates().size(); j++) {
+                KybotDate kybotDate = fact.getDates().get(j);
+                for (int k = 0; k < kybotDate.getSpans().size(); k++) {
+                    String s = kybotDate.getSpans().get(k);
+                    if (kafParser.TermToWord.containsKey(s)) {
+                        dateIds = kafParser.TermToWord.get(s);
+                    }
+                }
+            }
+
+            //// we merge all ids to represent the event scope
+            mergedIds.addAll(eventIds);
+            mergedIds.addAll(roleIds);
+/*
+            mergedIds.addAll(locIds);
+            mergedIds.addAll(countryIds);
+            mergedIds.addAll(dateIds);
+*/
+
+            ///// mergedIds now contains all the tokens
+            ///   we are going to expand it to all the tokens in the sentences that they occur in:
+
+            mergedIds = getSentenceIds(kafParser, mergedIds);
+            String sentence = getSentence(kafParser, eventIds);
+/*
+            System.out.println("Sentence:"+sentence);
+            for (int j = 0; j < mergedIds.size(); j++) {
+                String s = mergedIds.get(j);
+                System.out.println("\tid:"+s);
+            }
+*/
+
+            if (mergedIds.size()>0) {
+
+                //We merge the event ids and the partipant ids to become one single participant
+                ArrayList<String> eventAndRoleAsParticipant = new ArrayList<String>();
+                eventAndRoleAsParticipant.addAll(eventIds);
+                eventAndRoleAsParticipant.addAll(roleIds);
+               ////// The event itself becomes a triplet with the relation expressed by the roles
+                Triplet pTriplet = new Triplet();
+                pTriplet.setEventComment(sentence);
+                pTriplet.setTripletId(fact.getEventId());
+                pTriplet.setEventIds(mergedIds);
+                pTriplet.setRelation(rType);
+                pTriplet.setParticipantIds(eventAndRoleAsParticipant);
+                pTriplet.setParticipantComment(fact.getLemma()+":");
+                pTriplet.setProfileId(fact.getProfileId());
+
+                for (int j = 0; j < fact.getRoles().size(); j++) {
+                    KybotRole role = fact.getRoles().get(j);
+                    if (roleIds.size()>0) {
+                        pTriplet.extendParticipantComment(role.getLemma());
+                    }
+                    else {
+                        nUnResolvedRoles++;
+                        System.out.println("Could not resolve role.getTarget() to word forms in KAF file= " + role.getTarget());
+                        System.out.println("role.toXmlString() = " + role.toXmlString());
+                    }
+                }
+                triplets.add(pTriplet);
+            }
+            else {
+                nUnResolvedFacts++;
+                System.out.println("Could not resolve fact.getTarget() to word forms in KAF file= " + fact.getTarget());
+                System.out.println("fact.toXmlString() = " + fact.toXmlString());
+            }
+        }
+        System.out.println("Nr. of facts = " + nFacts);
+        System.out.println("Nr. of unresolved facts = "+ nUnResolvedFacts);
+        System.out.println("Nr. of unresolved roles = "+ nUnResolvedRoles);
+        System.out.println("Nr. of triplets = " + triplets.size());
+        return triplets;
+
+    }
+
+    static ArrayList<String> getSentenceIds (KafSaxParser kafParser, ArrayList<String> tokenIds) {
+        ArrayList<String> ids = new ArrayList<String>();
+        for (int i = 0; i < tokenIds.size(); i++) {
+            String s = tokenIds.get(i);
+            if (!ids.contains(s)) {
+                ids.add(s);
+            }
+            KafWordForm wf = kafParser.wordFormMap.get(s);
+            String sentenceId = wf.getSent();
+            ArrayList<String> sentenceWfIds = kafParser.SentenceToWord.get(sentenceId);
+            for (int j = 0; j < sentenceWfIds.size(); j++) {
+                String s1 = sentenceWfIds.get(j);
+                if (!ids.contains(s1)) {
+                    ids.add(s1);
+                }
+            }
+        }
+        return ids;
+    }
+
+    static String getSentence (KafSaxParser kafParser, ArrayList<String> tokenIds) {
+        String sentence = "";
+        ArrayList<String> ids = new ArrayList<String>();
+        for (int i = 0; i < tokenIds.size(); i++) {
+            String s = tokenIds.get(i);
+            KafWordForm wf = kafParser.wordFormMap.get(s);
+            String sentenceId = wf.getSent();
+            ArrayList<String> sentenceWfIds = kafParser.SentenceToWord.get(sentenceId);
+            for (int j = 0; j < sentenceWfIds.size(); j++) {
+                String s1 = sentenceWfIds.get(j);
+                if (!ids.contains(s1)) {
+                    ids.add(s1);
+                    KafWordForm wfSentence = kafParser.wordFormMap.get(s1);
+                    sentence += " "+wfSentence.getWf();
+                }
+            }
+        }
+        return sentence.trim();
+    }
+
+    static String getSentence (KafSaxParser kafParser, String sentenceId) {
+        String sentence = "";
+        ArrayList<String> ids = new ArrayList<String>();
+        ArrayList<String> sentenceWfIds = kafParser.SentenceToWord.get(sentenceId);
+        if (sentenceWfIds==null) {
+            System.out.println("No word forms for sentenceId = " + sentenceId);
+        }
+        else {
+            for (int j = 0; j < sentenceWfIds.size(); j++) {
+                String s1 = sentenceWfIds.get(j);
+                if (!ids.contains(s1)) {
+                    ids.add(s1);
+                    KafWordForm wfSentence = kafParser.wordFormMap.get(s1);
+                    sentence += " "+wfSentence.getWf();
+                }
+            }
+        }
+        return sentence.trim();
+    }
+
+
+}
