@@ -40,7 +40,7 @@ public class TripleSaxParser extends DefaultHandler {
     private int averageElementSecondIdRange;
     Triple triple;
     String value = "";
-    public ArrayList<Triple> data;
+    public ArrayList<Triple> data; /// triples in range
     public ArrayList<Triple> outdata;
     public ArrayList<String> tokenRange;
     public ArrayList<String> relationFilter;

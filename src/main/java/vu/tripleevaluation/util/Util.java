@@ -1,11 +1,10 @@
 package vu.tripleevaluation.util;
 
+import vu.tripleevaluation.io.TripleSaxParser;
 import vu.tripleevaluation.objects.Triple;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -156,6 +155,94 @@ public class Util {
             }
         }
         //if (match) System.out.println("MATCH"); else System.out.println("MISMATCH");
+        return match;
+    }
+
+   /*
+   Compare Triple FirstElement
+   Partial match of both event and participant is sufficient.
+   If there is a label it is matched as well
+   */
+    static public boolean intersectFirstElementsPartialId(Triple goldTriple, Triple systemTriple) {
+        boolean match = false;
+        ArrayList<String> intersectionEventIds = new ArrayList<String>(goldTriple.getElementFirstIds());
+        intersectionEventIds.retainAll(systemTriple.getElementFirstIds());
+        if (goldTriple.getElementFirstIds().size()==0 && systemTriple.getElementFirstIds().size()==0) {
+                match = true;
+        }
+        else {
+            if (intersectionEventIds.size()>0) {
+                //System.out.println("intersectionEventIds = " + intersectionEventIds);
+                match = true;
+            }
+        }
+        if (!goldTriple.getElementFirstLabel().isEmpty()) {
+            match = goldTriple.getElementFirstLabel().equals(systemTriple.getElementFirstLabel());
+        }
+        return match;
+    }
+
+   /*
+   Compare Triple SecondElement
+   Partial match of both event and participant is sufficient.
+   If there is a label it is matched as well.
+   */
+    static public boolean intersectSecondElementsPartialId(Triple goldTriple, Triple systemTriple) {
+        boolean match = false;
+        ArrayList<String> intersectionEventIds = new ArrayList<String>(goldTriple.getElementSecondIds());
+        intersectionEventIds.retainAll(systemTriple.getElementSecondIds());
+        if (goldTriple.getElementSecondIds().size()==0 && systemTriple.getElementSecondIds().size()==0) {
+                match = true;
+        }
+        else {
+            if (intersectionEventIds.size()>0) {
+                //System.out.println("intersectionEventIds = " + intersectionEventIds);
+                match = true;
+            }
+        }
+        if (!goldTriple.getElementSecondLabel().isEmpty()) {
+            match = goldTriple.getElementSecondLabel().equals(systemTriple.getElementSecondLabel());
+        }
+        return match;
+    }
+
+   /*
+   Compare Triple FirstElement
+   Partial match of both event and participant is sufficient.
+   */
+    static public boolean intersectFirstElementsPartialIdNoLabel(Triple goldTriple, Triple systemTriple) {
+        boolean match = false;
+        ArrayList<String> intersectionEventIds = new ArrayList<String>(goldTriple.getElementFirstIds());
+        intersectionEventIds.retainAll(systemTriple.getElementFirstIds());
+        if (goldTriple.getElementFirstIds().size()==0 && systemTriple.getElementFirstIds().size()==0) {
+                match = true;
+        }
+        else {
+            if (intersectionEventIds.size()>0) {
+                //System.out.println("intersectionEventIds = " + intersectionEventIds);
+                match = true;
+            }
+        }
+        return match;
+    }
+
+   /*
+   Compare Triple SecondElement
+   Partial match of both event and participant is sufficient.
+   */
+    static public boolean intersectSecondElementsPartialIdNoLabel(Triple goldTriple, Triple systemTriple) {
+        boolean match = false;
+        ArrayList<String> intersectionEventIds = new ArrayList<String>(goldTriple.getElementSecondIds());
+        intersectionEventIds.retainAll(systemTriple.getElementSecondIds());
+        if (goldTriple.getElementSecondIds().size()==0 && systemTriple.getElementSecondIds().size()==0) {
+                match = true;
+        }
+        else {
+            if (intersectionEventIds.size()>0) {
+                //System.out.println("intersectionEventIds = " + intersectionEventIds);
+                match = true;
+            }
+        }
         return match;
     }
 
@@ -346,6 +433,212 @@ public class Util {
         return sorter;
     }
 
+    static public boolean intersect (ArrayList<String> ids1, ArrayList<String> ids2) {
+        for (int i = 0; i < ids1.size(); i++) {
+            String s = ids1.get(i);
+            if (ids2.contains(s)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static public String compareElements (TripleSaxParser goldParser, TripleSaxParser systemParser) {
+        String str = "";
+        int nMatchedFirst = 0;
+        int nNotMatchedFirst = 0;
+        int nMatchedSecond = 0;
+        int nNotMatchedSecond = 0;
+        int nFirstGold = 0;
+        int nFirstSystem = 0;
+        int nSecondGold = 0;
+        int nSecondSystem = 0;
+        HashMap<String, Integer> firstLabelMatches = new HashMap<String, Integer>();
+        HashMap<String, Integer> secondLabelMatches = new HashMap<String, Integer>();
+        HashMap<String, Integer> firstLabelMisMatches = new HashMap<String, Integer>();
+        HashMap<String, Integer> secondLabelMisMatches = new HashMap<String, Integer>();
+        ArrayList<String> elementsFirstGold = new ArrayList<String>();
+        ArrayList<String> elementsFirstSystem = new ArrayList<String>();
+        ArrayList<String> elementsSecondGold = new ArrayList<String>();
+        ArrayList<String> elementsSecondSystem = new ArrayList<String>();
+
+        /// we loop over the GS to determine the GS-elements that were matched
+        for (int i = 0; i < goldParser.data.size(); i++) {
+            Triple TripleG = goldParser.data.get(i);
+            if (TripleG.getElementFirstIds().size()>0) {
+                if (!intersect(elementsFirstGold, TripleG.getElementFirstIds())) {
+                    elementsFirstGold.addAll(TripleG.getElementFirstIds());
+                    nFirstGold++;
+                    for (int j = 0; j < systemParser.data.size(); j++) {
+                        Triple TripleS = systemParser.data.get(j);
+                        if (Util.intersectFirstElementsPartialId(TripleG, TripleS)) {
+                            nMatchedFirst++;
+                            String label = TripleG.getElementFirstLabel();
+                            if (firstLabelMatches.containsKey(label)) {
+                                Integer cnt = firstLabelMatches.get(label);
+                                cnt++;
+                                firstLabelMatches.put(label, cnt);
+                            }
+                            else {
+                                firstLabelMatches.put(label, 1);
+                            }
+                            // if we do not break, multiple matches are allowed
+                             break;
+                        }
+                        else if (Util.intersectFirstElementsPartialIdNoLabel(TripleG, TripleS)) {
+                            /// only labels mismatch but IDs match
+                            String labelPair = TripleG.getElementFirstLabel()+":"+TripleS.getElementFirstLabel();
+                            if (firstLabelMisMatches.containsKey(labelPair)) {
+                                Integer cnt = firstLabelMisMatches.get(labelPair);
+                                cnt++;
+                                firstLabelMisMatches.put(labelPair, cnt);
+                            }
+                            else {
+                                firstLabelMisMatches.put(labelPair, 1);
+                            }
+                        }
+                    }
+                }
+            }
+            if (TripleG.getElementSecondIds().size()>0) {
+                if (!intersect(elementsSecondGold, TripleG.getElementSecondIds())) {
+                    elementsSecondGold.addAll(TripleG.getElementSecondIds());
+                    nSecondGold++;
+                    for (int j = 0; j < systemParser.data.size(); j++) {
+                        Triple TripleS = systemParser.data.get(j);
+                        if (Util.intersectSecondElementsPartialId(TripleG, TripleS)) {
+                            nMatchedSecond++;
+                            String label = TripleG.getElementSecondLabel();
+                            if (secondLabelMatches.containsKey(label)) {
+                                Integer cnt = secondLabelMatches.get(label);
+                                cnt++;
+                                secondLabelMatches.put(label, cnt);
+                            }
+                            else {
+                                secondLabelMatches.put(label, 1);
+                            }
+                            // if we do not break, multiple matches are allowed
+                            break;
+                        }
+                        else if (Util.intersectSecondElementsPartialIdNoLabel(TripleG, TripleS)) {
+                            /// only labels mismatch but IDs match
+                            String labelPair = TripleG.getElementSecondLabel()+":"+TripleS.getElementSecondLabel();
+                            if (secondLabelMisMatches.containsKey(labelPair)) {
+                                Integer cnt = secondLabelMisMatches.get(labelPair);
+                                cnt++;
+                                secondLabelMisMatches.put(labelPair, cnt);
+                            }
+                            else {
+                                secondLabelMisMatches.put(labelPair, 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        /// we loop over the system triples to find the elements that are not in the GS
+        for (int i = 0; i < systemParser.data.size(); i++) {
+            Triple TripleS = systemParser.data.get(i);
+            if (TripleS.getElementFirstIds().size()>0) {
+                if (!intersect(elementsFirstSystem, TripleS.getElementFirstIds())) {
+                    elementsFirstSystem.addAll(TripleS.getElementFirstIds());
+                    nFirstSystem++;
+                    boolean matchedFirst = false;
+                    for (int j = 0; j < goldParser.data.size(); j++) {
+                        Triple TripleG = goldParser.data.get(j);
+                        if (Util.intersectFirstElementsPartialId(TripleG, TripleS)) {
+                            matchedFirst = true;
+                            break;
+                        }
+                    }
+                    if (!matchedFirst) {
+                        nNotMatchedFirst++;
+                    }
+                }
+            }
+            if (TripleS.getElementSecondIds().size()>0) {
+                if (!intersect(elementsSecondSystem, TripleS.getElementSecondIds())) {
+                    elementsSecondSystem.addAll(TripleS.getElementSecondIds());
+                    nSecondSystem++;
+                    boolean matchedSecond = false;
+                    for (int j = 0; j < goldParser.data.size(); j++) {
+                        Triple TripleG = goldParser.data.get(j);
+                        if (Util.intersectSecondElementsPartialId(TripleG, TripleS)) {
+                            matchedSecond = true;
+                            break;
+                        }
+                    }
+                    if (!matchedSecond) {
+                        nNotMatchedSecond++;
+                    }
+                }
+            }
+        }
+        str += "\n";
+        str += "\tNumber of non-intersecting first elements represented in gold standard Triples\t"+nFirstGold+"\n";
+        str += "\tNumber of non-intersecting first elements represented in system Triples\t"+nFirstSystem+"\n";
+        str += "\tNumber of correct first elements represented in system Triples\t"+nMatchedFirst+"\n";
+        str += "\tRecall of first elements\t"+(double)nMatchedFirst/(double)nFirstGold+"\n";
+        str += "\tPrecision of first elements\t"+(double)nMatchedFirst/(double)(nMatchedFirst+nNotMatchedFirst)+"\n";
+        str += "\n";
+        str += "\tLabel matches first elements:\n";
+        Integer total = 0;
+        Set keySet = firstLabelMatches.keySet();
+        Iterator keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            Integer cnt = firstLabelMatches.get(key);
+            total+= cnt;
+            str += "\t"+key+"\t"+cnt+"\n";
+        }
+        str += "\tTotal\t"+total+"\n";
+        str += "\n";
+        str += "\tLabel mismatches first elements:\n";
+        total = 0;
+        keySet = firstLabelMisMatches.keySet();
+        keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            Integer cnt = firstLabelMisMatches.get(key);
+            total+= cnt;
+            str += "\t"+key+"\t"+cnt+"\n";
+        }
+        str += "\tTotal\t"+total+"\n";
+        str += "\n";
+        str += "\n";
+        str += "\tNumber of non-intersecting second elements represented in gold standard Triples\t"+nSecondGold+"\n";
+        str += "\tNumber of non-intersecting second elements represented in system Triples\t"+nSecondSystem+"\n";
+        str += "\tNumber of correct second elements represented in system Triples\t"+(systemParser.nUniqueElementsSecondInData())+"\n";
+        str += "\tRecall of second elements\t"+(double)nMatchedSecond/(double)nSecondGold+"\n";
+        str += "\tPrecision of second elements\t"+(double)nMatchedSecond/(double)(nMatchedSecond+nNotMatchedSecond)+"\n";
+        str += "\n";
+        str += "\tLabel matches second elements:\n";
+        total = 0;
+        keySet = secondLabelMatches.keySet();
+        keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            Integer cnt = secondLabelMatches.get(key);
+            total+= cnt;
+            str += "\t"+key+"\t"+cnt+"\n";
+        }
+        str += "\tTotal\t"+total+"\n";
+        str += "\n";
+        str += "\tLabel mismatches second elements:\n";
+        total = 0;
+        keySet = secondLabelMisMatches.keySet();
+        keys = keySet.iterator();
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            Integer cnt = secondLabelMisMatches.get(key);
+            total+= cnt;
+            str += "\t"+key+"\t"+cnt+"\n";
+        }
+        str += "\tTotal\t"+total+"\n";
+        str += "\n";
+        str += "\n";
+        return str;
+    }
 
 
 }

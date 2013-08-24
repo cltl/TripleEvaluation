@@ -503,7 +503,7 @@ public class EvaluateTripleFolders {
                        // evaluation.fos = new FileOutputStream(evaluationResultFolder+"/"+systemFile.getName()+"."+key+".results"+date.toString()+".xls");
                        // evaluation.log = new FileOutputStream(evaluationResultFolder+"/"+systemFile.getName()+"."+key+".results"+date.toString()+".log");
                         String str ="";
-                        str = evaluation.compareTripleFiles(goldFile.getAbsolutePath(), systemFile.getAbsolutePath(),relationFilter);
+                        evaluation.compareTripleFiles(goldFile.getAbsolutePath(), systemFile.getAbsolutePath(),relationFilter);
                        // evaluation.fos.write(str.getBytes());
                         //str = evaluation.printResults(goldFile.getName(), systemFile.getName());
                         //evaluation.fos.write(str.getBytes());

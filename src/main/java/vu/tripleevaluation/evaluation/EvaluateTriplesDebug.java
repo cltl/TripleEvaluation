@@ -315,14 +315,12 @@ public class EvaluateTriplesDebug {
         this.uniqueSystemRelationTriples = uniqueSystemRelationTriples;
     }
 
-    public String compareTripleFiles (String goldStandardFile, String systemFile) {
-        String str = "";
+    public void compareTripleFiles (String goldStandardFile, String systemFile) {
         ArrayList<String> filter = new ArrayList<String>();
-        return compareTripleFiles(goldStandardFile, systemFile, filter);
+        compareTripleFiles(goldStandardFile, systemFile, filter);
     }
 
-    public String compareTripleFiles (String goldStandardFile, String systemFile, ArrayList<String> relationFilter) {
-        String str = "";
+    public void compareTripleFiles (String goldStandardFile, String systemFile, ArrayList<String> relationFilter) {
         init(); /// creates new parser instances.....
         systemParser.relationFilter = relationFilter;
         goldParser.relationFilter = relationFilter;
@@ -336,15 +334,15 @@ public class EvaluateTriplesDebug {
         //// We set the token range for the systemParser.
         //// This means that we only consider system Triples if
         //// the first element identifiers of the Triple match some first element identifier of the gold standard
+        goldParser.timeAndLocation = timeAndLocation;
+        // System.out.println("parsing goldStandardFile = " + goldStandardFile);
+        goldParser.parseFile(goldStandardFile);
+        printStatistics (goldStandardFile, goldParser);
         systemParser.tokenRange = tokenRange;
         systemParser.timeAndLocation = timeAndLocation;
        // System.out.println("parsing systemFile = " + systemFile);
         systemParser.parseFile(systemFile);
-        str = printStatistics (systemFile, systemParser);
-        goldParser.timeAndLocation = timeAndLocation;
-       // System.out.println("parsing goldStandardFile = " + goldStandardFile);
-        goldParser.parseFile(goldStandardFile);
-        str += printStatistics (goldStandardFile, goldParser);
+        printStatistics (systemFile, systemParser);
         this.nSystemTriples = systemParser.data.size();
         this.nGoldTriples = goldParser.data.size();
         this.notCoveredTriples = Util.copyTriples(goldParser.data);
@@ -646,8 +644,8 @@ public class EvaluateTriplesDebug {
                 iterator = set.iterator();
                 while (iterator.hasNext()) {
                     Triple Triple = (Triple) iterator.next();
-                    str = Triple.getElementFirstComment()+":"+Triple.getRelation()+":"+Triple.getElementSecondComment()+"\n";
-                    log.write(str.getBytes());
+                    logstr = Triple.getElementFirstComment()+":"+Triple.getRelation()+":"+Triple.getElementSecondComment()+"\n";
+                    log.write(logstr.getBytes());
                 }
 
                 //nCorrectPartialIdTriples
@@ -730,8 +728,12 @@ public class EvaluateTriplesDebug {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             }
         }
+        this.nSystemTriples = nSystemTriplesInRange;
+        this.nSystemTriples = nSystemTriplesInRange;
+    }
 
-        
+    public  String printRelationTables () {
+        String str = "";
         Set keySet = profileMap.keySet();
         Iterator keys = keySet.iterator();
         str = "\nResults per profile\n";
@@ -768,9 +770,6 @@ public class EvaluateTriplesDebug {
         if (relationGold>0) totalPartialRecall = (100*relationCorrectPartial)/relationGold;
         if (relationSystem>0) totalPartialPrecision = (100*relationCorrectPartial)/relationSystem;
         str += "Total\t"+relationGold+"\t"+relationSystem+"\t"+relationCorrectExact+"\t"+totalExactRecall+"\t"+totalExactPrecision+"\t"+relationCorrectPartial+"\t"+totalPartialRecall+"\t"+totalPartialPrecision+"\n";
-        
-        this.nSystemTriples = nSystemTriplesInRange;
-        this.nSystemTriples = nSystemTriplesInRange;
         return str;
     }
 
@@ -788,6 +787,9 @@ public class EvaluateTriplesDebug {
         str += "\tAverage nr. of second element ids\t"+systemParser.getAverageElementSecondIdRange()+"\n";
         str += "\tNumber of unique Triples in scope\t"+uniquePartialIdExactRelationTriples.size()+"\n";
         str += "\n";
+        str += Util.compareElements(goldParser, systemParser);
+
+/*
         str += "\tNumber of first elements represented in gold standard Triples\t"+(goldParser.nUniqueElementsFirst())+"\n";
         str += "\tNumber of first elements represented in system Triples\t"+(systemParser.nUniqueElementsFirst())+"\n";
         str += "\tNumber of correct first elements represented in system Triples\t"+(systemParser.nUniqueElementsFirstInData())+"\n";
@@ -800,6 +802,7 @@ public class EvaluateTriplesDebug {
         str += "\tNumber of correct second elements  represented in system Triples\t"+(systemParser.nUniqueElementsSecondInData())+"\n";
         str += "\tRecall of second elements \t"+(double)systemParser.nUniqueElementsSecondInData()/(double)goldParser.nUniqueElementsSecond()+"\n";
         str += "\tPrecision of second elements \t"+(double)systemParser.nUniqueElementsSecondInData()/(double)systemParser.nUniqueElementsSecond()+"\n";
+*/
 
         dExactIdExactRelationPrecision = (double)this.correctExactIdExactRelationTriples.size()/(double)this.uniqueExactIdExactRelationTriples.size();
         //dExactIdExactRelationPrecision = (double)this.nCorrectExactIdExactRelation/(double)this.nSystemTriples;
@@ -836,13 +839,11 @@ public class EvaluateTriplesDebug {
 
         str+="\n\t"+"Nr of Triples\tTriples inscope\tCorrect\tWSD threshold\tPrecision\tRecall\n";
         str+=""+systemFile+"\t"+(this.nSystemTriples+systemParser.outOfRangeCount)+"\t"+uniquePartialIdExactRelationTriples.size()+"\t"+correctPartialIdExactRelationTriples.size()+"\t\t"+dPartialIdExactRelationPrecision+"\t"+dParialIdExactRelationRecall+"\n";
-        str+= "\n\t"+"Nr first elements\tCorrect\tRecall\tPrecision\n";
-        str+= systemFile+"\t"+systemParser.nUniqueElementsFirst()+"\t"+systemParser.nUniqueElementsFirstInData()+"\t"+(double)systemParser.nUniqueElementsFirstInData()/(double)goldParser.nUniqueElementsFirst()+"\t"+(double)systemParser.nUniqueElementsFirstInData()/(double)systemParser.nUniqueElementsFirst()+"\n";
 
         return str;
     }
 
-    public String printStatistics (String fileName, TripleSaxParser parser) {
+    public void printStatistics (String fileName, TripleSaxParser parser) {
         String str = parser.message;
         ArrayList<String> firstElements = new ArrayList<String>();
         HashMap<String, Integer> relations = new HashMap<String, Integer>();
@@ -879,7 +880,6 @@ public class EvaluateTriplesDebug {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             }
         }
-        return str;
     }
 
     public String readTokenRange (String tokenRangeFile) {
@@ -964,9 +964,10 @@ public class EvaluateTriplesDebug {
                     str = evaluation.readTokenRange(tokenRangeFile);
                     evaluation.fos.write(str.getBytes());
                 }
-                str = evaluation.compareTripleFiles(goldStandardTripleFile, systemTripleFile);
-                evaluation.fos.write(str.getBytes());
+                evaluation.compareTripleFiles(goldStandardTripleFile, systemTripleFile);
                 str = evaluation.printResults(new File(goldStandardTripleFile).getName(), new File(systemTripleFile).getName());
+                evaluation.fos.write(str.getBytes());
+                str = evaluation.printRelationTables();
                 evaluation.fos.write(str.getBytes());
                 evaluation.fos.close();
             } catch (IOException e) {

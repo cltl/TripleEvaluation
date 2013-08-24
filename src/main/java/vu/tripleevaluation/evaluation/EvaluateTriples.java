@@ -301,9 +301,11 @@ public class EvaluateTriples {
         this.uniqueSystemRelationTriples = uniqueSystemRelationTriples;
     }
 
-    public String compareTripleFiles (String goldStandardFile, String systemFile) {
+    public void compareTripleFiles (String goldStandardFile, String systemFile) {
         init();
+/*
         String str = "";
+*/
         //// We set the token range for the systemParser.
         //// This means that we only consider system Triples if
         //// the first element identifiers of the Triple match some first element identifier of the gold standard
@@ -411,6 +413,34 @@ public class EvaluateTriples {
         }
 
 
+/*        int relationCorrectPartial = 0;
+        int relationGold = 0;
+        int relationSystem = 0;
+        str += "\nResults per relation\n";
+        Set keySet = relationMap.keySet();
+        Iterator keys = keySet.iterator();
+        str += "Relation\tTotal gold\tProportion Gold\tTotal system\tProportion system\tPartialIdExactRelation\tRecall\tPrecision\n";
+        while (keys.hasNext()) {
+            String key = (String) keys.next();
+            Statistics stat = relationMap.get(key);
+            stat.totalSystem = stat.uniqueSystemTriples.size();
+            relationCorrectPartial += stat.getCorrectPartialIdExactRelation();
+            relationGold += stat.getTotalGold();
+            relationSystem += stat.getTotalSystem();
+            Double perc1 = 100*(double)stat.getTotalGold()/(double)nGoldTriples;
+            Double perc2 = 100*(double)stat.getTotalSystem()/(double)nSystemTriples;
+            str += key+stat.toStringPartialRelation(perc1.intValue(), perc2.intValue());
+        }
+        int totalPartialRecall = 0;
+        int totalPartialPrecision = 0;
+        if (relationGold>0) totalPartialRecall = (100*relationCorrectPartial)/relationGold;
+        if (relationSystem>0) totalPartialPrecision = (100*relationCorrectPartial)/relationSystem;
+        str += "Total\t"+relationGold+"\t"+"\t"+relationSystem+"\t"+"\t"+relationCorrectPartial+"\t"+totalPartialRecall+"\t"+totalPartialPrecision+"\n";
+        return str;*/
+    }
+
+    public String printRelationResults () {
+        String str = "";
         int relationCorrectPartial = 0;
         int relationGold = 0;
         int relationSystem = 0;
@@ -451,24 +481,11 @@ public class EvaluateTriples {
         str += "\tAverage nr. of second element ids\t"+systemParser.getAverageElementSecondIdRange()+"\n";
         str += "\tNumber of unique Triples in scope\t"+uniquePartialIdExactRelationTriples.size()+"\n";
         str += "\n";
-        str += "\tNumber of first elements represented in gold standard Triples\t"+(goldParser.nUniqueElementsFirst())+"\n";
-        str += "\tNumber of first elements represented in system Triples\t"+(systemParser.nUniqueElementsFirst())+"\n";
-        str += "\tNumber of correct first elements represented in system Triples\t"+(systemParser.nUniqueElementsFirstInData())+"\n";
-        str += "\tRecall of first elements\t"+(double)systemParser.nUniqueElementsFirstInData()/(double)goldParser.nUniqueElementsFirst()+"\n";
-        str += "\tPrecision of first elements\t"+(double)systemParser.nUniqueElementsFirstInData()/(double)systemParser.nUniqueElementsFirst()+"\n";
-       // str += goldParser.printElementsFirstInData()+"\n";
-       // str += systemParser.printElementsFirstInData()+"\n";
 
-        str += "\n";
-        str += "\tNumber of second elements represented in gold standard Triples\t"+(goldParser.nUniqueElementsSecond())+"\n";
-        str += "\tNumber of second elements represented in system Triples\t"+(systemParser.nUniqueElementsSecond())+"\n";
-        str += "\tNumber of correct second elements represented in system Triples\t"+(systemParser.nUniqueElementsSecondInData())+"\n";
-        str += "\tRecall of second elements\t"+(double)systemParser.nUniqueElementsSecondInData()/(double)goldParser.nUniqueElementsSecond()+"\n";
-        str += "\tPrecision of second elements\t"+(double)systemParser.nUniqueElementsSecondInData()/(double)systemParser.nUniqueElementsSecond()+"\n";
+        str += Util.compareElements(goldParser, systemParser);
+
        //  str += goldParser.printElementsSecondInData()+"\n";
        //  str += systemParser.printElementsSecondInData()+"\n";
-
-
 
         System.out.println("this.nUniquePartialIdExactRelationTriples.size() = " + this.uniquePartialIdExactRelationTriples.size());
         dPartialIdExactRelationPrecision = (double)this.correctPartialIdExactRelationTriples.size() /(double)this.uniquePartialIdExactRelationTriples.size();
@@ -578,9 +595,9 @@ public class EvaluateTriples {
                     str = evaluation.readTokenRange(tokenRangeFile);
                     evaluation.fos.write(str.getBytes());
                 }
-                str = evaluation.compareTripleFiles(goldStandardTripleFile, systemTripleFile);
-                evaluation.fos.write(str.getBytes());
+                evaluation.compareTripleFiles(goldStandardTripleFile, systemTripleFile);
                 str = evaluation.printResults(new File(goldStandardTripleFile).getName(), new File(systemTripleFile).getName());
+                str += evaluation.printRelationResults();
                 evaluation.fos.write(str.getBytes());
                 evaluation.fos.close();
             } catch (IOException e) {
