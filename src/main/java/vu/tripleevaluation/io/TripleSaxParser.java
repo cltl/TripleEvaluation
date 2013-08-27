@@ -43,6 +43,8 @@ public class TripleSaxParser extends DefaultHandler {
     public ArrayList<Triple> data; /// triples in range
     public ArrayList<Triple> outdata;
     public ArrayList<String> tokenRange;
+    public String labelFilterSecondElement;
+    public String labelFilterFirstElement;
     public ArrayList<String> relationFilter;
     public HashMap <String, String> relationMap;
     public int outOfRangeCount;
@@ -76,6 +78,8 @@ public class TripleSaxParser extends DefaultHandler {
         TripleCount = 0;
         timeAndLocation = true;
         fileName = "";
+        this.labelFilterFirstElement = "";
+        this.labelFilterSecondElement = "";
     }
 
 
@@ -259,23 +263,29 @@ public class TripleSaxParser extends DefaultHandler {
                     else {
                         if ((relationFilter.size()==0) || relationFilter.contains(triple.getRelation())) {
                            // System.out.println("relationFilter = " + relationFilter.size());
-                            TripleCount++;
-                            if (relationMap.containsKey(triple.getRelation())) {
-                                String mappedRelation = relationMap.get(triple.getRelation());
-                                triple.setRelation(mappedRelation);
-                            }
-                          //  System.out.println("TripleCount = " + TripleCount);
-                            if (checkTokenRange(tokenRange, triple)) {
-                                averageElementSecondIdRange += triple.getElementSecondIds().size();
-                                averageElementFirstIdRange += triple.getElementFirstIds().size();
-                                if (triple.getProfileId().length()==0) {
-                                    triple.setProfileId(triple.getRelation());
+                            if ((labelFilterFirstElement.isEmpty() || triple.getElementFirstLabel().equals(labelFilterFirstElement))) {
+                                if ((labelFilterSecondElement.isEmpty() || triple.getElementSecondLabel().equals(labelFilterSecondElement))) {
+                                    TripleCount++;
+                                    if (relationMap.containsKey(triple.getRelation())) {
+                                        String mappedRelation = relationMap.get(triple.getRelation());
+                                        triple.setRelation(mappedRelation);
+                                    }
+                                    //System.out.println("labelFilterFirstElement = " + labelFilterFirstElement);
+                                    System.out.println("labelFilterSecondElement = " + labelFilterSecondElement);
+                                  //  System.out.println("TripleCount = " + TripleCount);
+                                    if (checkTokenRange(tokenRange, triple)) {
+                                        averageElementSecondIdRange += triple.getElementSecondIds().size();
+                                        averageElementFirstIdRange += triple.getElementFirstIds().size();
+                                        if (triple.getProfileId().length()==0) {
+                                            triple.setProfileId(triple.getRelation());
+                                        }
+                                        data.add(triple);
+                                    }
+                                    else {
+                                        outOfRangeCount++;
+                                        outdata.add(triple);
+                                    }
                                 }
-                                data.add(triple);
-                            }
-                            else {
-                                outOfRangeCount++;
-                                outdata.add(triple);
                             }
                         }
                     }

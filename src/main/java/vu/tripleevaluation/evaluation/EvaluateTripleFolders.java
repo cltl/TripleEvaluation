@@ -27,6 +27,9 @@ public class EvaluateTripleFolders {
     static ArrayList<Triple> notCoveredTriples;
     static ArrayList<Triple> wrongRelationTriples;
 
+    static String elementFirstLabelFilter = "";
+    static String elementSecondLabelFilter = "";
+
     static ArrayList<String> relationFilter = new ArrayList<String>();
     static int nGoldTriples;
     static int nSystemTriples;
@@ -447,6 +450,22 @@ public class EvaluateTripleFolders {
                     System.out.println("NO RELATION FILE PROVIDED!");
                 }
 
+            }
+            else if (arg.equalsIgnoreCase("--element-first-filter")) {
+                if (i+1<args.length) {
+                    evaluation.elementFirstLabelFilter = args[i+1];
+                }
+                else {
+                    System.out.println("NO FILTER PROVIDED!");
+                }
+            }
+            else if (arg.equalsIgnoreCase("--element-second-filter")) {
+                if (i+1<args.length) {
+                    evaluation.elementSecondLabelFilter = args[i+1];
+                }
+                else {
+                    System.out.println("NO FILTER PROVIDED!");
+                }
             }
         }
         System.out.println("goldStandardTripleFolder = " + goldStandardTripleFolder);

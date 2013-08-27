@@ -62,6 +62,9 @@ public class EvaluateTriples {
 
     private HashMap<String, Statistics> relationMap = new HashMap<String, Statistics>();
 
+    public String elementFirstLabelFilter = "";
+    public String elementSecondLabelFilter = "";
+
     public boolean ignoreRelations = false;
     public boolean timeAndLocation = true;
     public boolean elementSecondMatch = true;
@@ -107,6 +110,9 @@ public class EvaluateTriples {
     }
 
     void init () {
+
+        elementFirstLabelFilter = "";
+        elementSecondLabelFilter = "";
         relationMap = new HashMap<String, Statistics>();
         tokenRange = new ArrayList<String>();
         goldParser = new TripleSaxParser();
@@ -311,8 +317,12 @@ public class EvaluateTriples {
         //// the first element identifiers of the Triple match some first element identifier of the gold standard
         systemParser.tokenRange = tokenRange;
         systemParser.timeAndLocation = timeAndLocation;
+        systemParser.labelFilterFirstElement = elementFirstLabelFilter;
+        systemParser.labelFilterSecondElement = elementSecondLabelFilter;
         systemParser.parseFile(systemFile);
         goldParser.timeAndLocation = timeAndLocation;
+        goldParser.labelFilterFirstElement = elementFirstLabelFilter;
+        goldParser.labelFilterSecondElement = elementSecondLabelFilter;
         goldParser.parseFile(goldStandardFile);
         this.nSystemTriples = systemParser.data.size();
         this.nGoldTriples = goldParser.data.size();
@@ -579,7 +589,22 @@ public class EvaluateTriples {
             }
             else if (arg.equalsIgnoreCase("--skip-time-and-location")) {
                 evaluation.timeAndLocation = false;
-
+            }
+            else if (arg.equalsIgnoreCase("--element-first-filter")) {
+                if (i+1<args.length) {
+                    evaluation.elementFirstLabelFilter = args[i+1];
+                }
+                else {
+                    System.out.println("NO FILTER PROVIDED!");
+                }
+            }
+            else if (arg.equalsIgnoreCase("--element-second-filter")) {
+                if (i+1<args.length) {
+                    evaluation.elementSecondLabelFilter = args[i+1];
+                }
+                else {
+                    System.out.println("NO FILTER PROVIDED!");
+                }
             }
         }
         if ((goldStandardTripleFile.length()>0) && (systemTripleFile.length()>0)) {
@@ -612,6 +637,8 @@ public class EvaluateTriples {
             usage += "--ignore-element-second (optional) lumps differentiated second elements as a single typed relation\n";
             usage += "--ignore-relations (optional) relation labels are ignored for matching\n";
             usage += "--skip-time-and-location (optional) TIME and LOCATION relations are ignored\n";
+            usage += "--element-first-filter (optional) only triples with specified label for first element\n";
+            usage += "--element-second-filter (optional) only triples with specified label for second element\n";
             System.out.println("usage =\n" + usage);
         }
     }

@@ -57,6 +57,9 @@ import java.util.*;
 
 public class EvaluateTriplesDebug {
 
+    public String elementFirstLabelFilter = "";
+    public String elementSecondLabelFilter = "";
+
     public boolean timeAndLocation = true;
     public boolean elementSecondMatch = true;
     private ArrayList<String> tokenRange;
@@ -323,7 +326,14 @@ public class EvaluateTriplesDebug {
     public void compareTripleFiles (String goldStandardFile, String systemFile, ArrayList<String> relationFilter) {
         init(); /// creates new parser instances.....
         systemParser.relationFilter = relationFilter;
+        systemParser.labelFilterFirstElement = elementFirstLabelFilter;
+        systemParser.labelFilterSecondElement = elementSecondLabelFilter;
         goldParser.relationFilter = relationFilter;
+        goldParser.labelFilterFirstElement = elementFirstLabelFilter;
+        goldParser.labelFilterSecondElement = elementSecondLabelFilter;
+      //  System.out.println("elementFirstLabelFilter = " + elementFirstLabelFilter);
+      //  System.out.println("elementSecondLabelFilter = " + elementSecondLabelFilter);
+
         int nSystemTriplesInRange = 0;
         //// Next booleans are used to make sure that only one matching Triple is counted, duplicate Triples are ignored,
         // e.g. same ids and same relation
@@ -950,6 +960,22 @@ public class EvaluateTriplesDebug {
                 evaluation.timeAndLocation = false;
 
             }
+            else if (arg.equalsIgnoreCase("--element-first-filter")) {
+                if ((i+1)<args.length) {
+                    evaluation.elementFirstLabelFilter = args[i+1];
+                }
+                else {
+                    System.out.println("NO FILTER PROVIDED!");
+                }
+            }
+            else if (arg.equalsIgnoreCase("--element-second-filter")) {
+                if ((i+1)<args.length) {
+                    evaluation.elementSecondLabelFilter = args[i+1];
+                }
+                else {
+                    System.out.println("NO FILTER PROVIDED!");
+                }
+            }
         }
         if ((goldStandardTripleFile.length()>0) && (systemTripleFile.length()>0)) {
             try {
@@ -980,7 +1006,10 @@ public class EvaluateTriplesDebug {
             usage += "--system-triples file with system triples\n";
             usage += "--token-range (optional) file with tokens for the first elements to be covered\n";
             usage += "--ignore-element-second (optional) lumps differentiated second elements as a single typed relation\n";
+            usage += "--ignore-relations (optional) relation labels are ignored for matching\n";
             usage += "--skip-time-and-location (optional) TIME and LOCATION relations are ignored\n";
+            usage += "--element-first-filter (optional) only triples with specified label for first element\n";
+            usage += "--element-second-filter (optional) only triples with specified label for second element\n";
             System.out.println("usage =\n" + usage);
         }
     }
