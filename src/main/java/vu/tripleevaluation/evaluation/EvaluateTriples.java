@@ -103,18 +103,19 @@ public class EvaluateTriples {
     HashMap<String, HashMap<String, Integer>> profileConfusionMatrix;
 
     public EvaluateTriples () {
+        init();
+        ///Global variables
         ignoreRelations = false;
         timeAndLocation = true;
         elementSecondMatch = true;
-        init();
+        tokenRange = new ArrayList<String>();
+        elementFirstLabelFilter = "";
+        elementSecondLabelFilter = "";
     }
 
     void init () {
-
-        elementFirstLabelFilter = "";
-        elementSecondLabelFilter = "";
+        /// variables for each run
         relationMap = new HashMap<String, Statistics>();
-        tokenRange = new ArrayList<String>();
         goldParser = new TripleSaxParser();
         systemParser = new TripleSaxParser();
         nGoldTriples = 0;
@@ -127,23 +128,18 @@ public class EvaluateTriples {
         dExactIdRecall = 0;
         dPartialIdPrecision = 0;
         dPartialIdRecall = 0;
-
         correctPartialIdExactRelationTriples = new ArrayList<Triple>();
         correctExactIdTriples = new ArrayList<Triple>();
         correctExactIdExactRelationTriples = new ArrayList<Triple>();
         correctPartialIdTriples = new ArrayList<Triple>();
-
         uniquePartialIdExactRelationTriples = new ArrayList<Triple>();
         uniqueExactIdTriples = new ArrayList<Triple>();
         uniqueExactIdExactRelationTriples = new ArrayList<Triple>();
         uniquePartialIdTriples = new ArrayList<Triple>();
-
         uniqueSystemRelationTriples = new ArrayList<Triple>();
-
         notCoveredTriples = new ArrayList<Triple>();
         wrongIdTriples = new ArrayList<Triple>();
         wrongRelationTriples = new ArrayList<Triple>();
-
         profileConfusionMatrix = new HashMap<String, HashMap<String, Integer>>();
     }
 
@@ -315,17 +311,23 @@ public class EvaluateTriples {
         //// We set the token range for the systemParser.
         //// This means that we only consider system Triples if
         //// the first element identifiers of the Triple match some first element identifier of the gold standard
+
+        //System.out.println("elementSecondLabelFilter = " + elementSecondLabelFilter);
         systemParser.tokenRange = tokenRange;
         systemParser.timeAndLocation = timeAndLocation;
         systemParser.labelFilterFirstElement = elementFirstLabelFilter;
         systemParser.labelFilterSecondElement = elementSecondLabelFilter;
         systemParser.parseFile(systemFile);
+
         goldParser.timeAndLocation = timeAndLocation;
         goldParser.labelFilterFirstElement = elementFirstLabelFilter;
         goldParser.labelFilterSecondElement = elementSecondLabelFilter;
         goldParser.parseFile(goldStandardFile);
+
         this.nSystemTriples = systemParser.data.size();
         this.nGoldTriples = goldParser.data.size();
+        System.out.println("nGoldTriples = " + nGoldTriples);
+        System.out.println("nSystemTriples = " + nSystemTriples);
 
         /// First we build a map for the relations in the gold-standard and count the number of gold Triples,
         // this is used to calculate recall per relation
@@ -497,7 +499,7 @@ public class EvaluateTriples {
        //  str += goldParser.printElementsSecondInData()+"\n";
        //  str += systemParser.printElementsSecondInData()+"\n";
 
-        System.out.println("this.nUniquePartialIdExactRelationTriples.size() = " + this.uniquePartialIdExactRelationTriples.size());
+       // System.out.println("this.nUniquePartialIdExactRelationTriples.size() = " + this.uniquePartialIdExactRelationTriples.size());
         dPartialIdExactRelationPrecision = (double)this.correctPartialIdExactRelationTriples.size() /(double)this.uniquePartialIdExactRelationTriples.size();
         dPartialIdExactRelationRecall = (double)this.correctPartialIdExactRelationTriples.size() /(double)this.nGoldTriples;
         dPartialIdPrecision = (double)this.correctPartialIdTriples.size() /(double)this.uniquePartialIdTriples.size();
@@ -513,7 +515,7 @@ public class EvaluateTriples {
             str += "\tNr. correct\t"+ correctPartialIdExactRelationTriples.size() +"\n";
             str += "\tPrecision\t"+ dPartialIdExactRelationPrecision+"\n";
             str += "\tRecall\t"+ dPartialIdExactRelationRecall +"\n";
-            str+="\n\t"+"Nr of Triples\tTriples inscope\tCorrect\tWSD threshold\tPrecision\tRecall\n";
+            str+="\n\t"+"Nr of Triples\tTriples in scope\tCorrect\tWSD threshold\tPrecision\tRecall\n";
             str+=""+systemFile+"\t"+(this.nSystemTriples+systemParser.outOfRangeCount)+"\t"+uniquePartialIdExactRelationTriples.size()+"\t"+correctPartialIdExactRelationTriples.size()+"\t\t"+dPartialIdExactRelationPrecision+"\t"+ dPartialIdExactRelationRecall +"\n";
             str+= "\n\t"+"Nr First Elements\tCorrect\tRecall\tPrecision\n";
             str+= systemFile+"\t"+systemParser.nUniqueElementsFirst()+"\t"+systemParser.nUniqueElementsFirstInData()+"\t"+(double)systemParser.nUniqueElementsFirstInData()/(double)goldParser.nUniqueElementsFirst()+"\t"+(double)systemParser.nUniqueElementsFirstInData()/(double)systemParser.nUniqueElementsFirst()+"\n";
@@ -606,6 +608,9 @@ public class EvaluateTriples {
                     System.out.println("NO FILTER PROVIDED!");
                 }
             }
+            else {
+                System.out.println("Error processing parameter = " + arg);
+            }
         }
         if ((goldStandardTripleFile.length()>0) && (systemTripleFile.length()>0)) {
             try {
@@ -615,6 +620,8 @@ public class EvaluateTriples {
                 System.out.println("systemTripleFile = " + systemTripleFile);
                 System.out.println("tokenRangeFile = " + tokenRangeFile);
                 System.out.println("evaluation.timeAndLocation = " + evaluation.timeAndLocation);
+                System.out.println("element first filter = " + evaluation.elementFirstLabelFilter);
+                System.out.println("element second filter = " + evaluation.elementSecondLabelFilter);
                 String str ="";
                 if (tokenRangeFile.length()>0) {
                     str = evaluation.readTokenRange(tokenRangeFile);

@@ -105,15 +105,19 @@ public class EvaluateTriplesDebug {
 
     public EvaluateTriplesDebug() {
         init();
+        ///Global variables
         timeAndLocation = true;
         elementSecondMatch = true;
+        tokenRange = new ArrayList<String>();
+        elementFirstLabelFilter = "";
+        elementSecondLabelFilter = "";
     }
 
     void init () {
+        /// Variables for each run
         profileMap = new HashMap<String, Statistics>();
         relationMap = new HashMap<String, Statistics>();
         relationMismatchLog = new ArrayList<String>();
-        tokenRange = new ArrayList<String>();
         goldParser = new TripleSaxParser();
         systemParser = new TripleSaxParser();
         nGoldTriples = 0;
@@ -975,6 +979,9 @@ public class EvaluateTriplesDebug {
                 else {
                     System.out.println("NO FILTER PROVIDED!");
                 }
+            }
+            else {
+                System.out.println("Error processing parameter = " + arg);
             }
         }
         if ((goldStandardTripleFile.length()>0) && (systemTripleFile.length()>0)) {

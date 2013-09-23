@@ -176,8 +176,10 @@ public class Util {
                 match = true;
             }
         }
-        if (!goldTriple.getElementFirstLabel().isEmpty()) {
-            match = goldTriple.getElementFirstLabel().equals(systemTriple.getElementFirstLabel());
+        if (match) {
+            if (!goldTriple.getElementFirstLabel().isEmpty()) {
+                match = goldTriple.getElementFirstLabel().equals(systemTriple.getElementFirstLabel());
+            }
         }
         return match;
     }
@@ -189,19 +191,24 @@ public class Util {
    */
     static public boolean intersectSecondElementsPartialId(Triple goldTriple, Triple systemTriple) {
         boolean match = false;
+        //System.out.println("goldTriple = " + goldTriple.toTableRowString());
+        //System.out.println("systemTriple = " + systemTriple.toTableRowString());
         ArrayList<String> intersectionEventIds = new ArrayList<String>(goldTriple.getElementSecondIds());
-        intersectionEventIds.retainAll(systemTriple.getElementSecondIds());
         if (goldTriple.getElementSecondIds().size()==0 && systemTriple.getElementSecondIds().size()==0) {
+                //System.out.println("NO SECOND ELEMENT IDS");
                 match = true;
         }
         else {
+            intersectionEventIds.retainAll(systemTriple.getElementSecondIds());
             if (intersectionEventIds.size()>0) {
                 //System.out.println("intersectionEventIds = " + intersectionEventIds);
                 match = true;
             }
         }
-        if (!goldTriple.getElementSecondLabel().isEmpty()) {
-            match = goldTriple.getElementSecondLabel().equals(systemTriple.getElementSecondLabel());
+        if (match) {
+            if (!goldTriple.getElementSecondLabel().isEmpty()) {
+                match = goldTriple.getElementSecondLabel().equals(systemTriple.getElementSecondLabel());
+            }
         }
         return match;
     }
@@ -472,7 +479,7 @@ public class Util {
                     for (int j = 0; j < systemParser.data.size(); j++) {
                         Triple TripleS = systemParser.data.get(j);
                         if (Util.intersectFirstElementsPartialId(TripleG, TripleS)) {
-                            nMatchedFirst++;
+                           // nMatchedFirst++;
                             String label = TripleG.getElementFirstLabel();
                             if (firstLabelMatches.containsKey(label)) {
                                 Integer cnt = firstLabelMatches.get(label);
@@ -507,7 +514,7 @@ public class Util {
                     for (int j = 0; j < systemParser.data.size(); j++) {
                         Triple TripleS = systemParser.data.get(j);
                         if (Util.intersectSecondElementsPartialId(TripleG, TripleS)) {
-                            nMatchedSecond++;
+                          //  nMatchedSecond++;
                             String label = TripleG.getElementSecondLabel();
                             if (secondLabelMatches.containsKey(label)) {
                                 Integer cnt = secondLabelMatches.get(label);
@@ -548,6 +555,7 @@ public class Util {
                         Triple TripleG = goldParser.data.get(j);
                         if (Util.intersectFirstElementsPartialId(TripleG, TripleS)) {
                             matchedFirst = true;
+                            nMatchedFirst++;
                             break;
                         }
                     }
@@ -565,6 +573,7 @@ public class Util {
                         Triple TripleG = goldParser.data.get(j);
                         if (Util.intersectSecondElementsPartialId(TripleG, TripleS)) {
                             matchedSecond = true;
+                            nMatchedSecond++;
                             break;
                         }
                     }
@@ -578,6 +587,7 @@ public class Util {
         str += "\tNumber of non-intersecting first elements represented in gold standard Triples\t"+nFirstGold+"\n";
         str += "\tNumber of non-intersecting first elements represented in system Triples\t"+nFirstSystem+"\n";
         str += "\tNumber of correct first elements represented in system Triples\t"+nMatchedFirst+"\n";
+        str += "\tNumber of incorrect first elements represented in system Triples\t"+nNotMatchedFirst+"\n";
         str += "\tRecall of first elements\t"+(double)nMatchedFirst/(double)nFirstGold+"\n";
         str += "\tPrecision of first elements\t"+(double)nMatchedFirst/(double)(nMatchedFirst+nNotMatchedFirst)+"\n";
         str += "\n";
@@ -608,7 +618,8 @@ public class Util {
         str += "\n";
         str += "\tNumber of non-intersecting second elements represented in gold standard Triples\t"+nSecondGold+"\n";
         str += "\tNumber of non-intersecting second elements represented in system Triples\t"+nSecondSystem+"\n";
-        str += "\tNumber of correct second elements represented in system Triples\t"+(systemParser.nUniqueElementsSecondInData())+"\n";
+        str += "\tNumber of correct second elements represented in system Triples\t"+nMatchedSecond+"\n";
+        str += "\tNumber of incorrect second elements represented in system Triples\t"+nNotMatchedSecond+"\n";
         str += "\tRecall of second elements\t"+(double)nMatchedSecond/(double)nSecondGold+"\n";
         str += "\tPrecision of second elements\t"+(double)nMatchedSecond/(double)(nMatchedSecond+nNotMatchedSecond)+"\n";
         str += "\n";

@@ -271,7 +271,7 @@ public class TripleSaxParser extends DefaultHandler {
                                         triple.setRelation(mappedRelation);
                                     }
                                     //System.out.println("labelFilterFirstElement = " + labelFilterFirstElement);
-                                    System.out.println("labelFilterSecondElement = " + labelFilterSecondElement);
+                                   // System.out.println("labelFilterSecondElement = " + labelFilterSecondElement);
                                   //  System.out.println("TripleCount = " + TripleCount);
                                     if (checkTokenRange(tokenRange, triple)) {
                                         averageElementSecondIdRange += triple.getElementSecondIds().size();
